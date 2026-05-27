@@ -321,6 +321,18 @@
         </div>
 
     </div>
+    <script>
+document.querySelector('input[name="budget"]').addEventListener('input', function(e) {
+    if (e.target.value === '666') {
+        // Find your budget card container and give it a wild party animation
+        const budgetCard = document.querySelector('.card'); // Adjust selector to target your budget card specifically
+        budgetCard.style.background = 'linear-gradient(45deg, #ff007f, #7f00ff, #00f0ff)';
+        budgetCard.style.transition = 'all 0.5s ease';
+        budgetCard.style.transform = 'scale(1.05) rotate(1deg)';
+        alert('JACKPOT!!!, kapec tu to izdarīji????');
+    }
+});
+</script>
 </div>
 </body>
 </html>

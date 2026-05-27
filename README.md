@@ -47,3 +47,6 @@
 - MySQL — datubāze
 - PhpSpreadsheet — Excel datņu nolasīšana un eksports
 - HTML/CSS/JavaScript — lietotāja saskarne
+
+## Lietas ko obligāti nedarīt 🤔
+- Ielikt Budģetu 666.
