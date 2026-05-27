@@ -28,7 +28,6 @@ $results = [];
 $totalScholarship = 0;
 
 foreach ($students as $student) {
-    // Get relevant grades for this student within date range
     $stmt = $pdo->prepare("
         SELECT g.subject, g.grade_type, g.grade
         FROM grades g
@@ -39,11 +38,9 @@ foreach ($students as $student) {
     $stmt->execute([$student['id'], $startDate, $endDate]);
     $grades = $stmt->fetchAll();
 
-    // Group by subject - pick correct grade
     $subjectGrades = [];
     foreach ($grades as $g) {
         $subject = $g['subject'];
-        // Galīgais vērtējums takes priority
         if ($g['grade_type'] === 'Galīgais vērtējums priekšmetā') {
             $subjectGrades[$subject] = $g['grade'];
         } elseif ($g['grade_type'] === 'II semestra vērtējums' && !isset($subjectGrades[$subject])) {
@@ -51,31 +48,23 @@ foreach ($students as $student) {
         }
     }
 
-    if (empty($subjectGrades)) {
-        continue;
-    }
+    if (empty($subjectGrades)) continue;
 
-    // Check for failing subjects
     $failCount = 0;
     foreach ($subjectGrades as $subject => $grade) {
         $category = $subjectCategories[$subject] ?? 'VIMP';
         $minGrade = ($category === 'PROF') ? 5.0 : 4.0;
-        if ($grade < $minGrade) {
-            $failCount++;
-        }
+        if ($grade < $minGrade) $failCount++;
     }
 
-    // Calculate average
     $avg = array_sum($subjectGrades) / count($subjectGrades);
-
-    // Determine scholarship
     $scholarship = 0;
+
     if ($failCount >= 2) {
-        $scholarship = 0; // no scholarship
+        $scholarship = 0;
     } elseif ($failCount === 1) {
         $scholarship = 15.00;
     } else {
-        // Look up in scholarship table
         foreach ($scholarshipTable as $row) {
             if ($avg >= $row['grade_from'] && $avg < $row['grade_to']) {
                 $scholarship = $row['amount'];
@@ -113,12 +102,15 @@ $difference = $budget - $totalScholarship;
         .over { color: red; }
         .under { color: green; }
         button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .btn-blue { background: #2196F3; }
         a { text-decoration: none; }
+        .fail { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>Stipendiju rezultāti</h1>
     <a href="index.php"><button>← Atpakaļ</button></a>
+    <a href="export.php"><button class="btn-blue"> Eksportēt uz Excel</button></a>
 
     <table>
         <tr>
@@ -136,7 +128,11 @@ $difference = $budget - $totalScholarship;
             <td><?= htmlspecialchars($r['personal_code']) ?></td>
             <td><?= htmlspecialchars($r['group']) ?></td>
             <td><?= $r['average'] ?></td>
-            <td><?= number_format($r['scholarship'], 2) ?> EUR</td>
+            <td class="<?= $r['scholarship'] == 0 && $r['fail_count'] >= 2 ? 'fail' : '' ?>">
+                <?= number_format($r['scholarship'], 2) ?> EUR
+                <?= $r['fail_count'] >= 2 ? '(Nav tiesību)' : '' ?>
+                <?= $r['fail_count'] == 1 ? '(1 nesekmīgs)' : '' ?>
+            </td>
         </tr>
         <?php endforeach; ?>
     </table>
