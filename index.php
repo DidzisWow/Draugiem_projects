@@ -11,7 +11,6 @@
             min-height: 100vh;
             color: #1a1a1a;
         }
-
         .container { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
 
         .page-title {
@@ -135,9 +134,11 @@
             margin-top: 16px;
             transition: all 0.2s;
             letter-spacing: 0.2px;
+            text-decoration: none;
         }
         .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .btn-dark { background: #111; color: white; }
+        .btn-red { background: #fdecea; color: #c62828; }
         .btn-full { width: 100%; text-align: center; padding: 14px; font-size: 15px; }
 
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -145,41 +146,36 @@
             background: #f8f9fb;
             color: #888;
             padding: 10px 12px;
-            text-align: left;
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid #efefef;
         }
         td {
-            padding: 9px 12px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f5f5f5;
-            color: #333;
         }
-        td input {
-            width: 100px;
-            padding: 6px 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 13px;
-        }
+        tr:last-child td { border-bottom: none; }
     </style>
 </head>
 <body>
 <div class="container">
 
-    <div class="page-title">Stipendiju aprēķins</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="page-title">Stipendiju aprēķins</div>
+        <a href="reset.php" class="btn btn-red" onclick="return confirm('Vai tiešām dzēst visus datus?')">🗑 Notīrīt datus</a>
+    </div>
     <div class="page-subtitle">Ievadiet datus un aprēķiniet stipendijas</div>
 
     <?php
     require 'db.php';
 
     $messages = [
-        'subjects_imported' => ' Priekšmeti veiksmīgi augšupielādēti!',
-        'grades_imported' => ' Vērtējumi veiksmīgi augšupielādēti!',
-        'settings_saved' => ' Iestatījumi saglabāti!',
-        'table_saved' => ' Stipendijas tabula saglabāta!'
+        'subjects_imported' => '✓ Priekšmeti veiksmīgi augšupielādēti!',
+        'grades_imported'   => '✓ Vērtējumi veiksmīgi augšupielādēti!',
+        'settings_saved'    => '✓ Iestatījumi saglabāti!',
+        'table_saved'       => '✓ Stipendijas tabula saglabāta!',
+        'reset'             => '✓ Visi dati veiksmīgi dzēsti!'
     ];
 
     if (isset($_GET['msg']) && isset($messages[$_GET['msg']])): ?>
@@ -198,6 +194,33 @@
             $subjectCount = $pdo->query("SELECT COUNT(*) FROM subjects")->fetchColumn();
             if ($subjectCount > 0): ?>
                 <div class="info-box"> Datubāzē: <strong><?= $subjectCount ?></strong> priekšmeti</div>
+                <?php
+                $vimp = $pdo->query("SELECT name FROM subjects WHERE category='VIMP' ORDER BY name")->fetchAll(PDO::FETCH_COLUMN);
+                $prof = $pdo->query("SELECT name FROM subjects WHERE category='PROF' ORDER BY name")->fetchAll(PDO::FETCH_COLUMN);
+                if ($vimp || $prof): ?>
+                <div style="margin-top:14px">
+                    <?php if ($vimp): ?>
+                    <div style="margin-bottom:10px">
+                        <span style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px">VIMP</span>
+                        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+                            <?php foreach ($vimp as $name): ?>
+                            <span style="background:#e8f4fd;color:#1565c0;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600"><?= htmlspecialchars($name) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($prof): ?>
+                    <div>
+                        <span style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px">PROF</span>
+                        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+                            <?php foreach ($prof as $name): ?>
+                            <span style="background:#f3e5f5;color:#6a1b9a;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600"><?= htmlspecialchars($name) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             <?php endif; ?>
             <form action="import_subjects.php" method="POST" enctype="multipart/form-data">
                 <label>Excel datne (.xlsx)</label>
@@ -215,12 +238,22 @@
             <?php
             $settings = $pdo->query("SELECT * FROM settings ORDER BY id DESC LIMIT 1")->fetch();
             if ($settings):
-                $month = (int)(new DateTime($settings['start_date']))->format('m');
-                $semester = ($month >= 9 || $month <= 1) ? '1. semestris' : '2. semestris';
+            $start = new DateTime($settings['start_date']);
+            $end = new DateTime($settings['end_date']);
+
+            // Calculate total days between start and end date
+            $days = $start->diff($end)->days;
+
+            if ($days > 180) {
+            $semester = 'Gada vērtējums';
+            } else {
+            $month = (int)$start->format('m');
+            $semester = in_array($month, [9, 10, 11, 12, ]) ? '1. semestris' : '2. semestris';
+               }
             ?>
                 <div class="info-box">
-                     <?= $settings['start_date'] ?> → <?= $settings['end_date'] ?> &nbsp;|&nbsp;
-                     <?= number_format($settings['monthly_budget'], 2) ?> EUR &nbsp;|&nbsp;
+                    <?= $settings['start_date'] ?> → <?= $settings['end_date'] ?> &nbsp;|&nbsp;
+                    <?= number_format($settings['monthly_budget'], 2) ?> EUR &nbsp;|&nbsp;
                     <span class="badge"><?= $semester ?></span>
                 </div>
             <?php endif; ?>
